@@ -13,6 +13,7 @@ The rings are pet-agnostic. They work with any pet Codex displays because the ap
 - Dragging the pet makes the rings follow the gesture immediately while Codex persists the new position.
 - Closing the Codex pet hides the rings.
 - Multi-display positioning uses the screen containing the pet bounds, not the currently focused screen.
+- macOS desktop/Space switching keeps the rings visible with the pet rather than tying them to one active desktop.
 - Switching to another Codex pet requires no extra setup; the overlay follows the active pet.
 
 ## Data Flow

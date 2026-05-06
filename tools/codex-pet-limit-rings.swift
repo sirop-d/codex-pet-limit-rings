@@ -700,6 +700,7 @@ final class LimitRingsApp: NSObject {
         panel.isOpaque = false
         panel.hasShadow = false
         panel.ignoresMouseEvents = true
+        panel.hidesOnDeactivate = false
         panel.level = .statusBar
         panel.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle, .fullScreenAuxiliary]
         super.init()
