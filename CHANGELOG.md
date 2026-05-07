@@ -11,3 +11,4 @@ Notable changes to `codex-pet-limit-rings` are recorded here.
 ### Changed
 
 - Reset countdown text uses compact proportional styling so hour/minute labels stay readable without making the capsule feel busy.
+- Rings now follow pet drags from the live Codex overlay window at drag-time, reducing visible lag when moving the pet.
