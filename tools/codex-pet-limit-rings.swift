@@ -29,6 +29,7 @@ private let limitStatePollInterval: TimeInterval = 20.0
 private let petFrameFallbackPollInterval: TimeInterval = 2.0
 private let petFrameStateDebounceInterval: TimeInterval = 0.035
 private let dragFollowInterval: TimeInterval = 1.0 / 60.0
+private let dragLiveMismatchTolerance: CGFloat = 96.0
 private let ringsVisibleDefaultsKey = "CodexPetLimitRings.ringsVisible"
 private let liveUsageURL = URL(string: "https://chatgpt.com/backend-api/wham/usage")!
 
@@ -263,7 +264,7 @@ final class PetFrameReader {
         self.globalStatePath = globalStatePath
     }
 
-    func readPetFramesTopLeft(preferLiveOverlay: Bool = false) -> PetFramesTopLeft? {
+    func readPetFramesTopLeft(preferLiveOverlay: Bool = false, liveReference: CGRect? = nil) -> PetFramesTopLeft? {
         guard let data = try? Data(contentsOf: globalStatePath),
               let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               isAvatarOverlayOpen(root),
@@ -281,7 +282,7 @@ final class PetFrameReader {
         }
 
         let persistedOverlay = CGRect(x: x, y: y, width: overlayWidth, height: overlayHeight)
-        let liveOverlay = preferLiveOverlay ? liveCodexOverlayBounds(matching: persistedOverlay) : nil
+        let liveOverlay = preferLiveOverlay ? liveCodexOverlayBounds(matching: liveReference ?? persistedOverlay, expectedSize: persistedOverlay.size) : nil
         let overlay = liveOverlay ?? persistedOverlay
         let mascot = CGRect(x: overlay.minX + left, y: overlay.minY + top, width: width, height: height)
         return PetFramesTopLeft(mascot: mascot, overlay: overlay, usedLiveOverlay: liveOverlay != nil)
@@ -314,13 +315,15 @@ final class PetFrameReader {
         return nil
     }
 
-    private func liveCodexOverlayBounds(matching persisted: CGRect) -> CGRect? {
+    private func liveCodexOverlayBounds(matching reference: CGRect, expectedSize: CGSize) -> CGRect? {
         let options = CGWindowListOption(arrayLiteral: .optionOnScreenOnly, .excludeDesktopElements)
         guard let windows = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]] else {
             return nil
         }
 
         return windows.compactMap { window -> CGRect? in
+            let maxWidthDelta = max(80.0, expectedSize.width * 0.55)
+            let maxHeightDelta = max(80.0, expectedSize.height * 0.55)
             guard (window[kCGWindowOwnerName as String] as? String) == "Codex",
                   let layer = number(window[kCGWindowLayer as String]),
                   layer > 0,
@@ -329,16 +332,26 @@ final class PetFrameReader {
                   let y = number(bounds["Y"]),
                   let width = number(bounds["Width"]),
                   let height = number(bounds["Height"]),
-                  abs(width - persisted.width) <= 2.0,
-                  abs(height - persisted.height) <= 2.0 else {
+                  width >= 40.0,
+                  height >= 40.0,
+                  abs(width - expectedSize.width) <= maxWidthDelta,
+                  abs(height - expectedSize.height) <= maxHeightDelta else {
                 return nil
             }
 
             return CGRect(x: x, y: y, width: width, height: height)
         }
         .min {
-            distanceSquared(CGPoint(x: $0.midX, y: $0.midY), to: persisted) < distanceSquared(CGPoint(x: $1.midX, y: $1.midY), to: persisted)
+            liveOverlayScore($0, reference: reference, expectedSize: expectedSize) < liveOverlayScore($1, reference: reference, expectedSize: expectedSize)
         }
+    }
+
+    private func liveOverlayScore(_ rect: CGRect, reference: CGRect, expectedSize: CGSize) -> CGFloat {
+        let center = CGPoint(x: rect.midX, y: rect.midY)
+        let distanceScore = distanceSquared(center, to: reference)
+        let widthDelta = rect.width - expectedSize.width
+        let heightDelta = rect.height - expectedSize.height
+        return distanceScore + (widthDelta * widthDelta + heightDelta * heightDelta) * 8.0
     }
 
     private func distanceSquared(_ point: CGPoint, to rect: CGRect) -> CGFloat {
@@ -803,8 +816,11 @@ final class LimitRingsApp: NSObject {
     private var pendingFrameUpdate: DispatchWorkItem?
     private var startTime = Date()
     private var currentPetFrameAppKit: CGRect?
+    private var currentPetOverlayTopLeft: CGRect?
     private var currentPetOverlayFrameAppKit: CGRect?
     private var isTrackingMouseDrag = false
+    private var dragMouseToPetOriginOffsetAppKit: CGPoint?
+    private var dragMouseToOverlayOriginOffsetAppKit: CGPoint?
     private var holdDraggedFrameUntil: Date?
     private var ringsVisible: Bool
     private var stateReadInFlight = false
@@ -945,10 +961,14 @@ final class LimitRingsApp: NSObject {
             return
         }
 
-        guard let petFrames = frameReader.readPetFramesTopLeft(preferLiveOverlay: preferLiveOverlay) else {
+        let liveReference = preferLiveOverlay ? currentPetOverlayTopLeft : nil
+        guard let petFrames = frameReader.readPetFramesTopLeft(preferLiveOverlay: preferLiveOverlay, liveReference: liveReference) else {
             currentPetFrameAppKit = nil
+            currentPetOverlayTopLeft = nil
             currentPetOverlayFrameAppKit = nil
             isTrackingMouseDrag = false
+            dragMouseToPetOriginOffsetAppKit = nil
+            dragMouseToOverlayOriginOffsetAppKit = nil
             stopDragFollowTimer()
             ringView.showsReadout = false
             panel.orderOut(nil)
@@ -962,7 +982,12 @@ final class LimitRingsApp: NSObject {
             return
         }
 
+        applyPetFrames(petFrames)
+    }
+
+    private func applyPetFrames(_ petFrames: PetFramesTopLeft) {
         currentPetFrameAppKit = appKitRectFromTopLeft(petFrames.mascot)
+        currentPetOverlayTopLeft = petFrames.overlay
         currentPetOverlayFrameAppKit = appKitRectFromTopLeft(petFrames.overlay)
         setPanelFrame(forPetFrameTopLeft: petFrames.mascot)
         if ringsVisible {
@@ -976,6 +1001,13 @@ final class LimitRingsApp: NSObject {
         let topLeft = CGPoint(x: petFrame.midX - size / 2, y: petFrame.midY - size / 2)
         let origin = appKitOriginFromTopLeft(topLeft, size: CGSize(width: size, height: size))
 
+        panel.setFrame(CGRect(origin: origin, size: CGSize(width: size, height: size)), display: true)
+    }
+
+    private func setPanelFrame(forPetFrameAppKit petFrame: CGRect) {
+        let padding: CGFloat = 38
+        let size = max(petFrame.width, petFrame.height) + padding * 2
+        let origin = CGPoint(x: petFrame.midX - size / 2, y: petFrame.midY - size / 2)
         panel.setFrame(CGRect(origin: origin, size: CGSize(width: size, height: size)), display: true)
     }
 
@@ -1127,10 +1159,14 @@ final class LimitRingsApp: NSObject {
         guard ringsVisible else { return }
         updateFrame()
         guard isLikelyPetDragStart(at: mouse) else { return }
+        guard let petFrame = currentPetFrameAppKit,
+              let overlayFrame = currentPetOverlayFrameAppKit else { return }
+        dragMouseToPetOriginOffsetAppKit = CGPoint(x: petFrame.minX - mouse.x, y: petFrame.minY - mouse.y)
+        dragMouseToOverlayOriginOffsetAppKit = CGPoint(x: overlayFrame.minX - mouse.x, y: overlayFrame.minY - mouse.y)
         isTrackingMouseDrag = true
         holdDraggedFrameUntil = nil
         startDragFollowTimer()
-        updateFrame(preferLiveOverlay: true)
+        updateDragFrame(at: mouse)
         ringView.showsReadout = false
     }
 
@@ -1143,13 +1179,15 @@ final class LimitRingsApp: NSObject {
             endDragFollow()
             return
         }
-        updateFrame(preferLiveOverlay: true)
+        updateDragFrame(at: mouse)
         ringView.showsReadout = false
     }
 
     private func endDragFollow() {
         guard isTrackingMouseDrag else { return }
         isTrackingMouseDrag = false
+        dragMouseToPetOriginOffsetAppKit = nil
+        dragMouseToOverlayOriginOffsetAppKit = nil
         stopDragFollowTimer()
         holdDraggedFrameUntil = Date().addingTimeInterval(0.18)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.20) { [weak self] in
@@ -1164,6 +1202,83 @@ final class LimitRingsApp: NSObject {
         (NSEvent.pressedMouseButtons & 1) != 0
     }
 
+    private func updateDragFrame(at mouse: CGPoint) {
+        guard isTrackingMouseDrag else { return }
+        guard isPrimaryMouseButtonPressed() else {
+            endDragFollow()
+            return
+        }
+
+        let predictedPetFrame = predictedDragPetFrame(at: mouse)
+        let predictedOverlayFrame = predictedDragOverlayFrame(at: mouse)
+        let liveReference = predictedOverlayFrame.flatMap { topLeftRectFromAppKit($0) } ?? currentPetOverlayTopLeft
+
+        if let petFrames = frameReader.readPetFramesTopLeft(preferLiveOverlay: true, liveReference: liveReference),
+           petFrames.usedLiveOverlay {
+            let livePetFrame = appKitRectFromTopLeft(petFrames.mascot)
+            if let predictedPetFrame {
+                guard dragLiveFrameIsClose(livePetFrame, to: predictedPetFrame) else {
+                    applyPredictedDragFrame(petFrame: predictedPetFrame, overlayFrame: predictedOverlayFrame)
+                    ringView.showsReadout = false
+                    return
+                }
+            }
+            applyPetFrames(petFrames)
+            ringView.showsReadout = false
+            return
+        }
+
+        if let predictedPetFrame {
+            applyPredictedDragFrame(petFrame: predictedPetFrame, overlayFrame: predictedOverlayFrame)
+        }
+        ringView.showsReadout = false
+    }
+
+    private func predictedDragPetFrame(at mouse: CGPoint) -> CGRect? {
+        guard let currentPetFrameAppKit,
+              let offset = dragMouseToPetOriginOffsetAppKit else {
+            return nil
+        }
+        return CGRect(
+            x: mouse.x + offset.x,
+            y: mouse.y + offset.y,
+            width: currentPetFrameAppKit.width,
+            height: currentPetFrameAppKit.height
+        )
+    }
+
+    private func predictedDragOverlayFrame(at mouse: CGPoint) -> CGRect? {
+        guard let currentPetOverlayFrameAppKit,
+              let offset = dragMouseToOverlayOriginOffsetAppKit else {
+            return nil
+        }
+        return CGRect(
+            x: mouse.x + offset.x,
+            y: mouse.y + offset.y,
+            width: currentPetOverlayFrameAppKit.width,
+            height: currentPetOverlayFrameAppKit.height
+        )
+    }
+
+    private func applyPredictedDragFrame(petFrame: CGRect, overlayFrame: CGRect?) {
+        currentPetFrameAppKit = petFrame
+        if let overlayFrame {
+            currentPetOverlayFrameAppKit = overlayFrame
+            currentPetOverlayTopLeft = topLeftRectFromAppKit(overlayFrame)
+        }
+        setPanelFrame(forPetFrameAppKit: petFrame)
+        if ringsVisible {
+            panel.orderFrontRegardless()
+        }
+    }
+
+    private func dragLiveFrameIsClose(_ liveFrame: CGRect, to predictedFrame: CGRect) -> Bool {
+        let dx = liveFrame.midX - predictedFrame.midX
+        let dy = liveFrame.midY - predictedFrame.midY
+        let tolerance = max(dragLiveMismatchTolerance, max(predictedFrame.width, predictedFrame.height) * 0.85)
+        return (dx * dx + dy * dy) <= tolerance * tolerance
+    }
+
     private func startDragFollowTimer() {
         guard dragFollowTimer == nil else { return }
         let timer = Timer(timeInterval: dragFollowInterval, repeats: true) { [weak self] _ in
@@ -1172,8 +1287,7 @@ final class LimitRingsApp: NSObject {
                 self.endDragFollow()
                 return
             }
-            self.updateFrame(preferLiveOverlay: true)
-            self.ringView.showsReadout = false
+            self.updateDragFrame(at: NSEvent.mouseLocation)
         }
         dragFollowTimer = timer
         RunLoop.main.add(timer, forMode: .common)
@@ -1251,6 +1365,22 @@ final class LimitRingsApp: NSObject {
         )
     }
 
+    private func topLeftRectFromAppKit(_ rect: CGRect) -> CGRect? {
+        guard let screen = screenForAppKitRect(rect) else {
+            return nil
+        }
+
+        let screenTopLeftFrame = topLeftFrame(for: screen)
+        let localX = rect.minX - screen.frame.minX
+        let localY = screen.frame.maxY - rect.maxY
+        return CGRect(
+            x: screenTopLeftFrame.minX + localX,
+            y: screenTopLeftFrame.minY + localY,
+            width: rect.width,
+            height: rect.height
+        )
+    }
+
     private func screenForTopLeftRect(_ rect: CGRect) -> NSScreen? {
         let screens = NSScreen.screens
         guard !screens.isEmpty else { return nil }
@@ -1261,6 +1391,19 @@ final class LimitRingsApp: NSObject {
 
         return screens.min {
             distanceSquared(center, to: topLeftFrame(for: $0)) < distanceSquared(center, to: topLeftFrame(for: $1))
+        }
+    }
+
+    private func screenForAppKitRect(_ rect: CGRect) -> NSScreen? {
+        let screens = NSScreen.screens
+        guard !screens.isEmpty else { return nil }
+        let center = CGPoint(x: rect.midX, y: rect.midY)
+        if let screen = screens.first(where: { $0.frame.contains(center) }) {
+            return screen
+        }
+
+        return screens.min {
+            distanceSquared(center, to: $0.frame) < distanceSquared(center, to: $1.frame)
         }
     }
 
