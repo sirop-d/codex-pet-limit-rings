@@ -16,7 +16,8 @@ In the sirop tuning, the reset countdowns stay visible below the pet instead of 
 
 - The left readout shows the short-window remaining percentage and reset countdown.
 - The right readout shows the weekly remaining percentage with a `w` prefix and its reset countdown.
-- The readouts are placed below the rings so the pet and speech bubble stay readable.
+- The readouts are placed close under the rings so the pet and speech bubble stay readable.
+- The two readout capsules shrink to the needed text width, then match the wider capsule so the bottom pair stays balanced.
 - The goal is to keep usage awareness ambient: visible at a glance, but not turned into a full dashboard.
 
 The upstream-style hover readouts are still part of the original project shape:
@@ -30,9 +31,10 @@ The rings are designed to be glanceable:
 - The outer ring shows the short-window limit remaining.
 - The inner ring shows the weekly limit remaining.
 - sirop tuning can keep bottom reset readouts visible for both limits.
+- Outer and inner healthy ring colors can be selected separately per pet from menu-bar presets or macOS `Custom...` colors.
 - Color moves from calm green/blue to amber and red as capacity gets low.
-- Hovering over the pet or rings shows the exact percentages at the current ring endpoints.
-- A small menu-bar icon lets you hide the rings, refresh data, or quit.
+- The bottom readouts show exact remaining percentages and reset countdowns at a glance, with matched compact capsule widths.
+- A small menu-bar icon lets you hide the rings, choose colors, refresh data, or quit.
 
 When the Codex pet is closed, the rings disappear. When the pet comes back, they come back too. On multi-display setups, the rings stay with the pet instead of jumping to whichever screen is focused.
 
@@ -54,7 +56,7 @@ Install the rings as a login item:
 tools/install-limit-rings.sh
 ```
 
-You should see a small rings icon in the macOS menu bar. Use that menu to toggle `Show Rings`, refresh the latest usage data, or quit.
+You should see a small rings icon in the macOS menu bar. Use that menu to toggle `Show Rings`, choose outer and inner ring colors, refresh the latest usage data, or quit.
 
 Then use any Codex pet normally. No pet setup step is required.
 
@@ -64,7 +66,7 @@ Run a development build without installing the login item:
 tools/run-limit-rings.sh
 ```
 
-Uninstall everything the installer adds:
+Uninstall everything the installer adds, including saved ring visibility and color preferences:
 
 ```bash
 tools/uninstall-limit-rings.sh
