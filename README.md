@@ -6,6 +6,21 @@ The experience is a small macOS companion app. It watches where the Codex pet is
 
 It works with whatever Codex pet you like. Built-in pet, custom pet, tiny dog, robot, weather daemon, or anything else: the app does not care. It only follows the pet window that Codex is already showing.
 
+![Always-visible reset countdown readouts under a Codex pet](docs/assets/sirop-always-visible-reset-readouts.jpg)
+
+## sirop-d Fork
+
+This fork keeps the upstream companion-app boundary, while exploring a more readable always-on reset readout for daily use.
+
+In the sirop tuning, the reset countdowns stay visible below the pet instead of appearing only as hover labels near ring endpoints:
+
+- The left readout shows the short-window remaining percentage and reset countdown.
+- The right readout shows the weekly remaining percentage with a `w` prefix and its reset countdown.
+- The readouts are placed below the rings so the pet and speech bubble stay readable.
+- The goal is to keep usage awareness ambient: visible at a glance, but not turned into a full dashboard.
+
+The upstream-style hover readouts are still part of the original project shape:
+
 ![Codex Pet Limit Rings around a Codex pet](docs/assets/codex-pet-limit-rings-screenshot.png)
 
 ## What You See
@@ -14,6 +29,7 @@ The rings are designed to be glanceable:
 
 - The outer ring shows the short-window limit remaining.
 - The inner ring shows the weekly limit remaining.
+- sirop tuning can keep bottom reset readouts visible for both limits.
 - Color moves from calm green/blue to amber and red as capacity gets low.
 - Hovering over the pet or rings shows the exact percentages at the current ring endpoints.
 - A small menu-bar icon lets you hide the rings, refresh data, or quit.
@@ -131,6 +147,10 @@ bash -n tools/*.sh
 ## Experiments
 
 The original exploration included a Python renderer for weather-mutated Codex pets. That work now lives under `experiments/weather-pets/` so the public repo can stay focused on limit rings while preserving the larger idea: Codex pets can become ambient interfaces for state, context, and mood.
+
+## Acknowledgements
+
+This repository is forked from [petergpt/codex-pet-limit-rings](https://github.com/petergpt/codex-pet-limit-rings) and preserves the original MIT license.
 
 ## License
 
