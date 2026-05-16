@@ -37,9 +37,12 @@ private let outerRingColorPresetDefaultsPrefix = "CodexPetLimitRings.outerColorP
 private let innerRingColorPresetDefaultsPrefix = "CodexPetLimitRings.innerColorPreset."
 private let outerRingCustomColorDefaultsPrefix = "CodexPetLimitRings.outerCustomColor."
 private let innerRingCustomColorDefaultsPrefix = "CodexPetLimitRings.innerCustomColor."
+private let ringOpacityDefaultsKey = "CodexPetLimitRings.ringOpacity"
 private let defaultRingColorPresetID = "default"
 private let defaultAvatarColorKey = "__default__"
 private let liveUsageURL = URL(string: "https://chatgpt.com/backend-api/wham/usage")!
+private let siropFolderURL = URL(fileURLWithPath: "/Users/sirop/Documents/*🍀sirop")
+private let codexAppURL = URL(fileURLWithPath: "/Applications/Codex.app")
 
 struct RingColorPalette {
     var primary: NSColor
@@ -49,6 +52,26 @@ struct RingColorPalette {
         primary: NSColor(calibratedRed: 0.24, green: 0.92, blue: 0.74, alpha: 0.96),
         secondary: NSColor(calibratedRed: 0.36, green: 0.70, blue: 1.00, alpha: 0.90)
     )
+}
+
+struct RingOpacitySetting {
+    var value: CGFloat
+
+    static let `default` = RingOpacitySetting(value: 1.0)
+
+    static func load() -> RingOpacitySetting {
+        RingOpacitySetting(value: CGFloat(UserDefaults.standard.object(forKey: ringOpacityDefaultsKey) as? Double ?? 1.0).clamped(to: 0.15...1.0))
+    }
+
+    func save() {
+        UserDefaults.standard.set(Double(value.clamped(to: 0.15...1.0)), forKey: ringOpacityDefaultsKey)
+    }
+}
+
+extension Comparable {
+    fileprivate func clamped(to range: ClosedRange<Self>) -> Self {
+        min(max(self, range.lowerBound), range.upperBound)
+    }
 }
 
 struct RingColorPreset {
@@ -481,6 +504,7 @@ struct LimitRingRenderer {
     var phase: Double
     var showsReadout: Bool = false
     var colorPalette: RingColorPalette = .default
+    var opacity: CGFloat = 1.0
 
     func draw(in rect: CGRect) {
         guard let context = NSGraphicsContext.current?.cgContext else { return }
@@ -556,13 +580,13 @@ struct LimitRingRenderer {
         context.saveGState()
         let color = NSColor(calibratedRed: 0.23 + urgency * 0.55, green: 0.85 - urgency * 0.30, blue: 0.78 - urgency * 0.48, alpha: 0.22 + urgency * 0.16)
         context.setLineCap(.round)
-        context.setShadow(offset: .zero, blur: 14.0 + urgency * breathe * 5.0, color: color.withAlphaComponent(0.55).cgColor)
-        context.setStrokeColor(color.withAlphaComponent(0.20).cgColor)
+        context.setShadow(offset: .zero, blur: 14.0 + urgency * breathe * 5.0, color: color.withAlphaComponent(0.55 * opacity).cgColor)
+        context.setStrokeColor(color.withAlphaComponent(0.20 * opacity).cgColor)
         context.setLineWidth(8.0)
         context.addArc(center: center, radius: radius + 3.0, startAngle: 0, endAngle: CGFloat.pi * 2.0, clockwise: false)
         context.strokePath()
         context.setShadow(offset: .zero, blur: 0.0, color: nil)
-        context.setStrokeColor(NSColor(calibratedWhite: 1.0, alpha: 0.045).cgColor)
+        context.setStrokeColor(NSColor(calibratedWhite: 1.0, alpha: 0.045 * opacity).cgColor)
         context.setLineWidth(1.0)
         context.addArc(center: center, radius: radius + 13.0, startAngle: 0, endAngle: CGFloat.pi * 2.0, clockwise: false)
         context.strokePath()
@@ -571,7 +595,7 @@ struct LimitRingRenderer {
 
     private func drawTicks(_ context: CGContext, center: CGPoint, radius: CGFloat) {
         context.saveGState()
-        context.setStrokeColor(NSColor(calibratedWhite: 1.0, alpha: 0.10).cgColor)
+        context.setStrokeColor(NSColor(calibratedWhite: 1.0, alpha: 0.10 * opacity).cgColor)
         context.setLineWidth(1.2)
         context.setLineCap(.round)
         for i in 0..<24 {
@@ -603,11 +627,11 @@ struct LimitRingRenderer {
         context.saveGState()
         context.setLineCap(.round)
         context.setLineWidth(lineWidth)
-        context.setStrokeColor(NSColor(calibratedWhite: 0.0, alpha: 0.22).cgColor)
+        context.setStrokeColor(NSColor(calibratedWhite: 0.0, alpha: 0.22 * opacity).cgColor)
         context.addArc(center: center, radius: radius + 1.0, startAngle: 0, endAngle: CGFloat.pi * 2.0, clockwise: false)
         context.strokePath()
 
-        context.setStrokeColor(NSColor(calibratedWhite: 1.0, alpha: trackAlpha).cgColor)
+        context.setStrokeColor(NSColor(calibratedWhite: 1.0, alpha: trackAlpha * opacity).cgColor)
         context.addArc(center: center, radius: radius, startAngle: 0, endAngle: CGFloat.pi * 2.0, clockwise: false)
         context.strokePath()
 
@@ -625,14 +649,14 @@ struct LimitRingRenderer {
 
         let glintAngle = start + CGFloat(phase.truncatingRemainder(dividingBy: 1.0)) * CGFloat.pi * 2.0
         let glint = point(center: center, radius: radius, angle: glintAngle)
-        context.setFillColor(NSColor(calibratedWhite: 1.0, alpha: 0.38).cgColor)
+        context.setFillColor(NSColor(calibratedWhite: 1.0, alpha: 0.38 * opacity).cgColor)
         context.fillEllipse(in: CGRect(x: glint.x - 1.8, y: glint.y - 1.8, width: 3.6, height: 3.6))
         context.restoreGState()
     }
 
     private func drawMissingRing(_ context: CGContext, center: CGPoint, radius: CGFloat, lineWidth: CGFloat) {
         context.saveGState()
-        context.setStrokeColor(NSColor(calibratedWhite: 1.0, alpha: 0.16).cgColor)
+        context.setStrokeColor(NSColor(calibratedWhite: 1.0, alpha: 0.16 * opacity).cgColor)
         context.setLineWidth(lineWidth)
         context.setLineCap(.round)
         context.addArc(center: center, radius: radius, startAngle: 0, endAngle: CGFloat.pi * 1.74, clockwise: false)
@@ -642,7 +666,7 @@ struct LimitRingRenderer {
 
     private func drawLimitReadouts(_ context: CGContext, center: CGPoint, outerRadius: CGFloat, innerRadius: CGFloat, bounds: CGRect) {
         var readouts: [LimitReadout] = []
-        let readoutY: CGFloat = 9.5
+        let readoutY: CGFloat = 6.5
         let gap: CGFloat = 9.0
         let horizontalInset: CGFloat = 8.0
         let availableWidth = max(44.0, bounds.width - horizontalInset * 2.0 - gap)
@@ -845,7 +869,7 @@ struct LimitRingRenderer {
             let dot = point(center: center, radius: radius, angle: angle)
             let color = color(forRemaining: item.bucket.remainingPercent, role: .primary)
             context.setShadow(offset: .zero, blur: 5.0, color: color.withAlphaComponent(0.35).cgColor)
-            context.setFillColor(color.withAlphaComponent(0.82).cgColor)
+            context.setFillColor(color.withAlphaComponent(0.82 * opacity).cgColor)
             context.fillEllipse(in: CGRect(x: dot.x - 2.4, y: dot.y - 2.4, width: 4.8, height: 4.8))
         }
         context.restoreGState()
@@ -853,15 +877,15 @@ struct LimitRingRenderer {
 
     private func color(forRemaining remaining: Double, role: RingRole) -> NSColor {
         if remaining <= 12 {
-            return NSColor(calibratedRed: 1.00, green: 0.26, blue: 0.22, alpha: 0.96)
+            return NSColor(calibratedRed: 1.00, green: 0.26, blue: 0.22, alpha: 0.96 * opacity)
         }
         if remaining <= 30 {
-            return NSColor(calibratedRed: 1.00, green: 0.68, blue: 0.20, alpha: 0.96)
+            return NSColor(calibratedRed: 1.00, green: 0.68, blue: 0.20, alpha: 0.96 * opacity)
         }
         if role == .secondary {
-            return colorPalette.secondary
+            return colorPalette.secondary.withAlphaComponent(colorPalette.secondary.alphaComponent * opacity)
         }
-        return colorPalette.primary
+        return colorPalette.primary.withAlphaComponent(colorPalette.primary.alphaComponent * opacity)
     }
 
     private func point(center: CGPoint, radius: CGFloat, angle: CGFloat) -> CGPoint {
@@ -943,11 +967,14 @@ final class LimitRingView: NSView {
     var colorPalette: RingColorPalette = .default {
         didSet { needsDisplay = true }
     }
+    var opacity: CGFloat = 1.0 {
+        didSet { needsDisplay = true }
+    }
 
     override var isOpaque: Bool { false }
 
     override func draw(_ dirtyRect: NSRect) {
-        LimitRingRenderer(state: state, phase: phase, showsReadout: showsReadout, colorPalette: colorPalette).draw(in: bounds)
+        LimitRingRenderer(state: state, phase: phase, showsReadout: showsReadout, colorPalette: colorPalette, opacity: opacity).draw(in: bounds)
     }
 }
 
@@ -970,6 +997,7 @@ final class LimitRingsApp: NSObject {
     private var innerColorPresetItems: [NSMenuItem] = []
     private var outerCustomColorItem: NSMenuItem?
     private var innerCustomColorItem: NSMenuItem?
+    private var opacityItems: [NSMenuItem] = []
     private var stateTimer: Timer?
     private var frameTimer: Timer?
     private var animationTimer: Timer?
@@ -987,6 +1015,8 @@ final class LimitRingsApp: NSObject {
     private var currentPetOverlayFrameAppKit: CGRect?
     private var currentAvatarID: String?
     private var activeCustomColorTarget: RingTarget?
+    private var ringOpacity: RingOpacitySetting
+    private var lastFolderPanelShownAt: Date?
     private var isTrackingMouseDrag = false
     private var dragMouseToPetOriginOffsetAppKit: CGPoint?
     private var dragMouseToOverlayOriginOffsetAppKit: CGPoint?
@@ -1000,6 +1030,7 @@ final class LimitRingsApp: NSObject {
         self.frameReader = PetFrameReader(globalStatePath: config.globalStatePath)
         self.ringView = LimitRingView(frame: CGRect(origin: .zero, size: CGSize(width: config.fallbackSize, height: config.fallbackSize)))
         self.ringsVisible = UserDefaults.standard.object(forKey: ringsVisibleDefaultsKey) as? Bool ?? true
+        self.ringOpacity = RingOpacitySetting.load()
         self.panel = NSPanel(
             contentRect: CGRect(origin: .zero, size: CGSize(width: config.fallbackSize, height: config.fallbackSize)),
             styleMask: [.borderless, .nonactivatingPanel],
@@ -1008,6 +1039,7 @@ final class LimitRingsApp: NSObject {
         )
 
         panel.contentView = ringView
+        ringView.opacity = ringOpacity.value
         panel.backgroundColor = .clear
         panel.isOpaque = false
         panel.hasShadow = false
@@ -1234,6 +1266,22 @@ final class LimitRingsApp: NSObject {
         colorItem.submenu = colorMenu
         menu.addItem(colorItem)
 
+        let opacityMenu = NSMenu()
+        for value in [1.0, 0.85, 0.70, 0.55, 0.40] {
+            let item = NSMenuItem(title: "\(Int(value * 100))%", action: #selector(setRingOpacity(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = value
+            opacityMenu.addItem(item)
+            opacityItems.append(item)
+        }
+        let opacityItem = NSMenuItem(title: "Ring Opacity", action: nil, keyEquivalent: "")
+        opacityItem.submenu = opacityMenu
+        menu.addItem(opacityItem)
+
+        let openProjectItem = NSMenuItem(title: "Choose Folder in sirop...", action: #selector(chooseFolderAndOpenCodex(_:)), keyEquivalent: "")
+        openProjectItem.target = self
+        menu.addItem(openProjectItem)
+
         let refreshItem = NSMenuItem(title: "Refresh Now", action: #selector(refreshNow(_:)), keyEquivalent: "r")
         refreshItem.target = self
         menu.addItem(refreshItem)
@@ -1248,6 +1296,7 @@ final class LimitRingsApp: NSObject {
         updateSummaryMenuItem()
         updateShowRingsMenuItem()
         updateRingColorMenuItems()
+        updateOpacityMenuItems()
     }
 
     private func makeRingColorPresetItems(action: Selector, menu: NSMenu) -> [NSMenuItem] {
@@ -1332,6 +1381,13 @@ final class LimitRingsApp: NSObject {
         }
         outerCustomColorItem?.state = outerUsesCustom ? .on : .off
         innerCustomColorItem?.state = innerUsesCustom ? .on : .off
+    }
+
+    private func updateOpacityMenuItems() {
+        for item in opacityItems {
+            guard let value = item.representedObject as? Double else { continue }
+            item.state = abs(value - Double(ringOpacity.value)) < 0.001 ? .on : .off
+        }
     }
 
     private func updateRingVisibility() {
@@ -1506,6 +1562,18 @@ final class LimitRingsApp: NSObject {
         updateRingColorMenuItems()
     }
 
+    @objc private func setRingOpacity(_ sender: NSMenuItem) {
+        guard let value = sender.representedObject as? Double else { return }
+        ringOpacity = RingOpacitySetting(value: CGFloat(value).clamped(to: 0.15...1.0))
+        ringOpacity.save()
+        ringView.opacity = ringOpacity.value
+        updateOpacityMenuItems()
+    }
+
+    @objc private func chooseFolderAndOpenCodex(_ sender: NSMenuItem) {
+        openFolderSelectionForCodex()
+    }
+
     @objc private func refreshNow(_ sender: NSMenuItem) {
         updateState()
         updateFrame()
@@ -1516,10 +1584,48 @@ final class LimitRingsApp: NSObject {
         NSApp.terminate(nil)
     }
 
+    private func openFolderSelectionForCodex() {
+        let panel = NSOpenPanel()
+        panel.title = "Choose a Codex project folder"
+        panel.prompt = "Open in Codex"
+        panel.message = "Select a folder under sirop to start a Codex project chat."
+        panel.directoryURL = FileManager.default.fileExists(atPath: siropFolderURL.path) ? siropFolderURL : FileManager.default.homeDirectoryForCurrentUser
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.canCreateDirectories = false
+
+        NSApp.activate(ignoringOtherApps: true)
+        guard panel.runModal() == .OK,
+              let folderURL = panel.url else {
+            return
+        }
+        openFolderInCodex(folderURL)
+    }
+
+    private func openFolderInCodex(_ folderURL: URL) {
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.activates = true
+        configuration.addsToRecentItems = true
+
+        NSWorkspace.shared.open([folderURL], withApplicationAt: codexAppURL, configuration: configuration) { _, error in
+            if let error {
+                DispatchQueue.main.async {
+                    NSWorkspace.shared.open(folderURL)
+                    fputs("codex-pet-limit-rings: could not open folder in Codex: \(error)\n", stderr)
+                }
+            }
+        }
+    }
+
     private func installDragFollow() {
-        mouseDownMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown]) { [weak self] _ in
+        mouseDownMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown]) { [weak self] event in
             DispatchQueue.main.async {
-                self?.beginDragFollowIfNeeded(at: NSEvent.mouseLocation)
+                guard let self else { return }
+                if self.handleDoubleClickIfNeeded(event, at: NSEvent.mouseLocation) {
+                    return
+                }
+                self.beginDragFollowIfNeeded(at: NSEvent.mouseLocation)
             }
         }
         mouseDragMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDragged]) { [weak self] _ in
@@ -1552,6 +1658,19 @@ final class LimitRingsApp: NSObject {
         startDragFollowTimer()
         updateDragFrame(at: mouse)
         ringView.showsReadout = false
+    }
+
+    private func handleDoubleClickIfNeeded(_ event: NSEvent, at mouse: CGPoint) -> Bool {
+        guard event.clickCount >= 2,
+              isLikelyPetDragStart(at: mouse) else {
+            return false
+        }
+        if let lastFolderPanelShownAt, Date().timeIntervalSince(lastFolderPanelShownAt) < 1.0 {
+            return true
+        }
+        lastFolderPanelShownAt = Date()
+        openFolderSelectionForCodex()
+        return true
     }
 
     private func continueDragFollow(at mouse: CGPoint) {
@@ -1823,12 +1942,13 @@ final class LimitRingsApp: NSObject {
 
 func renderPreview(config: LimitRingsConfig) -> Bool {
     let state = LimitStateReader(logsPath: config.logsPath, authPath: config.authPath).readLatest()
+    let ringOpacity = RingOpacitySetting.load()
     let size = CGSize(width: config.fallbackSize + 16.0, height: config.fallbackSize + bottomReadoutBandHeight)
     let image = NSImage(size: size)
     image.lockFocus()
     NSColor.clear.setFill()
     NSRect(origin: .zero, size: size).fill()
-    LimitRingRenderer(state: state, phase: 0.18, showsReadout: true).draw(in: CGRect(origin: .zero, size: size))
+    LimitRingRenderer(state: state, phase: 0.18, showsReadout: true, opacity: ringOpacity.value).draw(in: CGRect(origin: .zero, size: size))
     image.unlockFocus()
 
     guard let previewPath = config.previewPath,

@@ -18,6 +18,8 @@ In the sirop tuning, the reset countdowns stay visible below the pet instead of 
 - The right readout shows the weekly remaining percentage with a `w` prefix and its reset countdown.
 - The readouts are placed close under the rings so the pet and speech bubble stay readable.
 - The two readout capsules shrink to the needed text width, then match the wider capsule so the bottom pair stays balanced.
+- Ring opacity can be softened from the menu bar without changing the selected colors.
+- Double-clicking the pet can open a folder picker rooted at `/Users/sirop/Documents/*🍀sirop`; choosing a folder opens it in Codex.
 - The goal is to keep usage awareness ambient: visible at a glance, but not turned into a full dashboard.
 
 The upstream-style hover readouts are still part of the original project shape:
@@ -34,7 +36,7 @@ The rings are designed to be glanceable:
 - Outer and inner healthy ring colors can be selected separately per pet from menu-bar presets or macOS `Custom...` colors.
 - Color moves from calm green/blue to amber and red as capacity gets low.
 - The bottom readouts show exact remaining percentages and reset countdowns at a glance, with matched compact capsule widths.
-- A small menu-bar icon lets you hide the rings, choose colors, refresh data, or quit.
+- A small menu-bar icon lets you hide the rings, choose colors, change ring opacity, choose a sirop folder, refresh data, or quit.
 
 When the Codex pet is closed, the rings disappear. When the pet comes back, they come back too. On multi-display setups, the rings stay with the pet instead of jumping to whichever screen is focused.
 
@@ -56,7 +58,7 @@ Install the rings as a login item:
 tools/install-limit-rings.sh
 ```
 
-You should see a small rings icon in the macOS menu bar. Use that menu to toggle `Show Rings`, choose outer and inner ring colors, refresh the latest usage data, or quit.
+You should see a small rings icon in the macOS menu bar. Use that menu to toggle `Show Rings`, choose outer and inner ring colors, adjust ring opacity, open a sirop folder in Codex, refresh the latest usage data, or quit.
 
 Then use any Codex pet normally. No pet setup step is required.
 

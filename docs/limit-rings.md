@@ -9,6 +9,8 @@ The rings are pet-agnostic. They work with any pet Codex displays because the ap
 - A rings icon appears in the macOS menu bar.
 - `Show Rings` toggles the overlay without quitting the app.
 - `Ring Colors` selects separate outer-ring and inner-ring presets or macOS custom colors for the current pet.
+- `Ring Opacity` softens the ring overlay while preserving the selected colors.
+- `Choose Folder in sirop...`, or double-clicking the pet, opens a directory picker at `/Users/sirop/Documents/*🍀sirop`; the selected folder is opened with `/Applications/Codex.app`.
 - `Refresh Now` rereads usage and pet-position state.
 - Two bottom readouts stay visible close under the ring: short-window remaining percentage plus reset countdown on the left, and weekly remaining percentage plus reset countdown on the right.
 - Bottom readout widths are computed from the rendered text, then both readouts are matched to the wider width and centered as a pair.
@@ -39,11 +41,12 @@ No OpenAI API key is required. The menu summary says `Live` when the direct usag
 - Inner ring: weekly remaining percentage.
 - Healthy ring colors come from the selected outer-ring and inner-ring presets or custom colors for the current pet. Built-in presets include Default, Sakura, Amber, Purple, Brown, Emerald, Aqua, Ruby, Lime, and Graphite.
 - Ring colors are derived from remaining capacity: green/blue for healthy, amber for low, red for critical.
+- Ring opacity multiplies ring, halo, tick, dot, glint, and track alpha values.
 - Exact percentages and reset timing are shown in the two bottom readouts so reset timing is always visible without turning the pet into a full dashboard.
-- The bottom readouts use matched compact capsule widths and sit just below the ring, keeping reset timing readable without leaving a wide empty band.
+- The bottom readouts use matched compact capsule widths and sit 3px lower than the first sirop tuning, keeping reset timing readable without touching the ring.
 - Additional model-limit buckets may appear as small outer markers when available.
 
-Color settings are saved in the app's macOS defaults domain using the selected pet id as part of the key. Outer and inner ring choices are stored separately. Custom colors are saved as RGB hex values selected through the macOS color panel. If a pet has no saved preset or custom color, the app falls back to the default preset. Older single-color-preset settings are still read as a compatibility fallback. They do not modify Codex pet assets or the Codex app bundle.
+Color settings are saved in the app's macOS defaults domain using the selected pet id as part of the key. Outer and inner ring choices are stored separately. Custom colors are saved as RGB hex values selected through the macOS color panel. Ring opacity is stored as one app-level preference. If a pet has no saved preset or custom color, the app falls back to the default preset. Older single-color-preset settings are still read as a compatibility fallback. They do not modify Codex pet assets or the Codex app bundle.
 
 ## Install Contract
 
