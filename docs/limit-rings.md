@@ -10,7 +10,7 @@ The rings are pet-agnostic. They work with any pet Codex displays because the ap
 - `Show Rings` toggles the overlay without quitting the app.
 - `Ring Colors` selects separate outer-ring and inner-ring presets or macOS custom colors for the current pet.
 - `Ring Opacity` softens the ring overlay while preserving the selected colors.
-- `Choose Folder in sirop...`, or double-clicking the pet, opens a directory picker at `/Users/sirop/Documents/*🍀sirop`; the selected folder is opened with `/Applications/Codex.app`.
+- `Choose Folder in sirop...`, or double-clicking the pet, opens a directory picker at `/Users/sirop/Documents/*🍀sirop`; the selected folder is opened with `/Applications/Codex.app` so a new project chat can start from that folder.
 - `Refresh Now` rereads usage and pet-position state.
 - Two bottom readouts stay visible close under the ring: short-window remaining percentage plus reset countdown on the left, and weekly remaining percentage plus reset countdown on the right.
 - Bottom readout widths are computed from the rendered text, then both readouts are matched to the wider width and centered as a pair.

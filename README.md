@@ -19,7 +19,7 @@ In the sirop tuning, the reset countdowns stay visible below the pet instead of 
 - The readouts are placed close under the rings so the pet and speech bubble stay readable.
 - The two readout capsules shrink to the needed text width, then match the wider capsule so the bottom pair stays balanced.
 - Ring opacity can be softened from the menu bar without changing the selected colors.
-- Double-clicking the pet can open a folder picker rooted at `/Users/sirop/Documents/*🍀sirop`; choosing a folder opens it in Codex.
+- Double-clicking the pet can open a folder picker rooted at `/Users/sirop/Documents/*🍀sirop`; choosing a folder opens it in Codex so you can start a new project chat from that folder.
 - The goal is to keep usage awareness ambient: visible at a glance, but not turned into a full dashboard.
 
 The upstream-style hover readouts are still part of the original project shape:
@@ -58,7 +58,7 @@ Install the rings as a login item:
 tools/install-limit-rings.sh
 ```
 
-You should see a small rings icon in the macOS menu bar. Use that menu to toggle `Show Rings`, choose outer and inner ring colors, adjust ring opacity, open a sirop folder in Codex, refresh the latest usage data, or quit.
+You should see a small rings icon in the macOS menu bar. Use that menu to toggle `Show Rings`, choose outer and inner ring colors, adjust ring opacity, choose a sirop folder and start a new Codex project chat from it, refresh the latest usage data, or quit.
 
 Then use any Codex pet normally. No pet setup step is required.
 
